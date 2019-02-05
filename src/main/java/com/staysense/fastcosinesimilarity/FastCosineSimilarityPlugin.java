@@ -68,27 +68,37 @@ public final class FastCosineSimilarityPlugin extends Plugin implements ScriptPl
             ScoreScript.Factory factory = (p, lookup) -> new ScoreScript.LeafFactory() {
                 // The field to compare against
                 final String field;
-                //Whether this search should be cosine or dot product
-                final Boolean cosine;
-                //The query embedded vector
+                // Whether this search should be cosine similarity or dot product
+                final boolean l1, l2, cosine, dot;
+                // score = (score + scoreOffset) * scoreScale
+                final Double scoreOffset, scoreScale;
+
+                // The query embedded vector
                 final Object vector;
                 Boolean exclude;
-                //The final comma delimited vector representation of the query vector
+                // The final comma delimited vector representation of the query vector
                 double[] inputVector;
                 {
                     if (p.containsKey("field") == false) {
                         throw new IllegalArgumentException("Missing parameter [field]");
                     }
 
-                    //Determine if cosine
-                    final Object cosineBool = p.get("cosine");
-                    cosine = cosineBool != null ? (boolean)cosineBool : true;
+                    final String measure = p.get("measure").toString();
+                    cosine = measure.equals("cosine");
+                    l2     = measure.equals("l2");
+                    l1     = measure.equals("l1");
+                    dot    = !(cosine || l2 || l1);
+
+                    final Object scoreOffsetObj = p.get("scoreOffset");
+                    scoreOffset = scoreOffsetObj != null ? Double.valueOf(scoreOffsetObj.toString()) : 0.0d;
+                    final Object scoreScaleObj = p.get("scoreScale");
+                    scoreScale = scoreScaleObj != null ? Double.valueOf(scoreScaleObj.toString()) : 1.0d;
 
                     //Get the field value from the query
                     field = p.get("field").toString();
 
                     final Object excludeBool = p.get("exclude");
-                    exclude = excludeBool != null ? (boolean)cosineBool : true;
+                    exclude = excludeBool != null ? (boolean) excludeBool : true;
 
                     //Get the query vector embedding
                     vector = p.get("vector");
@@ -154,44 +164,54 @@ public final class FastCosineSimilarityPlugin extends Plugin implements ScriptPl
                             }
 
 
-                            final ByteArrayDataInput docVector = new ByteArrayDataInput(bytes);
+                            final ByteArrayDataInput docVectorData = new ByteArrayDataInput(bytes);
 
-                            docVector.readVInt();
+                            docVectorData.readVInt();
 
-                            final int docVectorLength = docVector.readVInt(); // returns the number of bytes to read
+                            final int docVectorLength = docVectorData.readVInt(); // returns the number of bytes to read
 
                             if(docVectorLength != inputVectorSize * 8) {
                                 return 0d;
                             }
 
-                            final int position = docVector.getPosition();
+                            final int position = docVectorData.getPosition();
 
                             final DoubleBuffer doubleBuffer = ByteBuffer.wrap(bytes, position, docVectorLength).asDoubleBuffer();
 
                             final double[] docVector = new double[inputVectorSize];
                             doubleBuffer.get(docVector);
 
-                            double docVectorNorm = 0d;
                             double score = 0d;
 
-                            //calculate dot product of document vector and query vector
-                            for (int i = 0; i < inputVectorSize; i++) {
-          
-                                score += docVector[i] * inputVector[i];
+                            if (cosine) {
+                                double docVectorNorm = 0d;
 
-                                if(cosine)
-                                {
-                                  docVectorNorm += Math.pow(docVector[i], 2.0);
+                                for (int i = 0; i < inputVectorSize; i++) {
+                                    score += docVector[i] * inputVector[i];
+                                    docVectorNorm += Math.pow(docVector[i], 2.0);
+                                }
+
+                                if (docVectorNorm == 0 || queryVectorNorm == 0) return scoreOffset * scoreScale;
+                                score = score / Math.sqrt(docVectorNorm) / Math.sqrt(queryVectorNorm);
+
+                            } else if (l2) {
+                                for (int i = 0; i < inputVectorSize; i++) {
+                                    score -= Math.pow(docVector[i] - inputVector[i], 2.0);
+                                }
+                                score = Math.sqrt(score);
+
+                            } else if (l1) {
+                                for (int i = 0; i < inputVectorSize; i++) {
+                                    score -= Math.abs(docVector[i] - inputVector[i]);
+                                }
+                                
+                            } else if (dot) {
+                                for (int i = 0; i < inputVectorSize; i++) {
+                                    score += docVector[i] * inputVector[i];
                                 }
                             }
 
-                            //If cosine, calcluate cosine score
-                            if(cosine) {
-
-                                if (docVectorNorm == 0 || queryVectorNorm == 0) return 0d;
-
-                                score =  score / (Math.sqrt(docVectorNorm) * Math.sqrt(queryVectorNorm));
-                            }
+                            score = (score + scoreOffset) * scoreScale;
 
                             return score;
                           }

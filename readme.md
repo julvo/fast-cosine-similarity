@@ -154,7 +154,7 @@ func convertBase64ToArray(base64Str string) ([]float64, error) {
                   "lang" : "fast_cosine",
                   "params": {
                       "field": "embeddedVector",
-                      "cosine": true,
+                      "measure": "cosine",
                       "encoded_vector" : "v+kopYAAAAA/wivkYAAAAD+wfJeAAAAAv8DL4QAAAAA/waYiwAAAAL+zAmvAAAAAv8c+aiAAAAC/07MyQAAAAL+ccr9AAAAAP9feCOAAAAC/y+ivYAAAAL/R34XgAAAAv+G8nuAAAAA/09hlwAAAAL/MkSWAAAAAP9EXn4AAAAC/zBBxYAAAAD/UY+3AAAAAP7zQSkAAAAC/zRijgAAAAA=="
                   }
               }
@@ -169,7 +169,7 @@ func convertBase64ToArray(base64Str string) ([]float64, error) {
 * The example above shows a vector of 64 dimensions
 * Parameters:
    1. `field`: The document field containing the base64 vector to compare against.
-   2. `cosine`: Boolean. if true - use cosine-similarity, else use dot-product.
+   2. `measure`: String. Specifies the similarity measure to use, either "dot", "cosine", "l1" or "l2"
    3. `encoded_vector`: The encoded vector to compare to.
 
 ## Querying with vectors
@@ -190,7 +190,7 @@ func convertBase64ToArray(base64Str string) ([]float64, error) {
                   "lang" : "fast_cosine",
                   "params": {
                       "field": "embeddedVector",
-                      "cosine": true,
+                      "measure": "l2",
                       "vector" : [
                       -0.09217305481433868, 0.010635560378432274, -0.02878434956073761, ... , 0.08279753476381302
                       ]
@@ -206,5 +206,5 @@ func convertBase64ToArray(base64Str string) ([]float64, error) {
 * The example above shows a vector of 64 dimensions
 * Parameters:
    1. `field`: The document field containing the base64 vector to compare against.
-   2. `cosine`: Boolean. if true - use cosine-similarity, else use dot-product.
+   2. `measure`: String. Specifies the similarity measure to use, either "dot", "cosine", "l1" or "l2"
    3. `vector`: The comma separated non-encoded vector to compare to.
