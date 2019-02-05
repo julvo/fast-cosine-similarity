@@ -196,9 +196,9 @@ public final class FastCosineSimilarityPlugin extends Plugin implements ScriptPl
 
                             } else if (l2) {
                                 for (int i = 0; i < inputVectorSize; i++) {
-                                    score -= Math.pow(docVector[i] - inputVector[i], 2.0);
+                                    score += Math.pow(docVector[i] - inputVector[i], 2.0);
                                 }
-                                score = Math.sqrt(score);
+                                score = -Math.sqrt(score);
 
                             } else if (l1) {
                                 for (int i = 0; i < inputVectorSize; i++) {
