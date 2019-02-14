@@ -160,7 +160,7 @@ public final class FastCosineSimilarityPlugin extends Plugin implements ScriptPl
 
                             try {
                                  bytes = accessor.binaryValue().bytes;
-                            } catch (IOException e) {
+                            } catch (NullPointerException | IOException e) {
                                  return 0d;
                             }
 
