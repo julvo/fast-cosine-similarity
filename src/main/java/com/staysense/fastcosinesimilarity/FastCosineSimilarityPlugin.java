@@ -21,6 +21,7 @@ package com.staysense.fastcosinesimilarity;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.NullPointerException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.ArrayList;
@@ -143,7 +144,7 @@ public final class FastCosineSimilarityPlugin extends Plugin implements ScriptPl
                               try {
                                   accessor.advanceExact(docId);
                                   is_value = true;
-                              } catch (IOException e) {
+                              } catch (NullPointerException | IOException e) {
                                   is_value = false;
                               }
                           }
