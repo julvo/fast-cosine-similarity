@@ -131,36 +131,50 @@ public final class FastCosineSimilarityPlugin extends Plugin implements ScriptPl
 
                 @Override
                 public ScoreScript newInstance(LeafReaderContext context) throws IOException {
+                    // Use Lucene LeafReadContext to access binary values directly.
+                    BinaryDocValues accessor = context.reader().getBinaryDocValues(field);
+
+                    if (accessor == null) {
+                        // the field and/or term don't exist in this segment,
+                        // so always return 0
+                        return new ScoreScript(p, lookup, context) {
+                            @Override
+                            public double execute() {
+                                return 0d;
+                            }
+                        };
+                    }
 
                     return new ScoreScript(p, lookup, context) {
+                          int currentDocID = -1;
                           Boolean is_value = false;
 
-                          // Use Lucene LeafReadContext to access binary values directly.
-                          BinaryDocValues accessor = context.reader().getBinaryDocValues(field);
-
                           @Override
-                          public void setDocument(int docId) {
-                              // advance has undefined behavior calling with a docid <= its current docid
-                              try {
-                                  accessor.advanceExact(docId);
-                                  is_value = true;
-                              } catch (NullPointerException | IOException e) {
-                                  is_value = false;
+                          public void setDocument(int docID) {
+                              // advanceExact has undefined behavior calling with a docid <= its current docid
+                              if (accessor.docID() <= docID) {
+                                  try {
+                                      is_value = accessor.advanceExact(docID);
+                                  } catch (IOException e) {
+                                      throw new UncheckedIOException(e);
+                                  }
                               }
+                              currentDocID = docID;
                           }
 
                           @Override
                           public double execute() {
+                            if (accessor.docID() != currentDocID) return 0d;
 
                             //If there is no field value return 0 rather than fail.
-                            if (!is_value) return 0.0d;
+                            if (!is_value) return 0d;
 
                             final int inputVectorSize = inputVector.length;
                             final byte[] bytes;
 
                             try {
                                  bytes = accessor.binaryValue().bytes;
-                            } catch (NullPointerException | IOException e) {
+                            } catch (IOException e) {
                                  return 0d;
                             }
 
