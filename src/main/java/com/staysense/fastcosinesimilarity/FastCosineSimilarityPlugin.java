@@ -70,7 +70,7 @@ public final class FastCosineSimilarityPlugin extends Plugin implements ScriptPl
                 // The field to compare against
                 final String field;
                 // Whether this search should be cosine similarity or dot product
-                final boolean l1, l2, cosine, dot;
+                final boolean l1, l2, cosine, dot, one_over_n, exp_decay, sq_decay, l2_squared;
                 // score = (score + scoreOffset) * scoreScale
                 final Double scoreOffset, scoreScale;
 
@@ -88,7 +88,11 @@ public final class FastCosineSimilarityPlugin extends Plugin implements ScriptPl
                     cosine = measure.equals("cosine");
                     l2     = measure.equals("l2");
                     l1     = measure.equals("l1");
-                    dot    = !(cosine || l2 || l1);
+                    one_over_n = measure.equals("one_over_n");
+                    exp_decay = measure.equals("exp_decay");
+                    sq_decay = measure.equals("sq_decay");
+                    l2_squared = measure.equals("l2_squared");
+                    dot    = !(cosine || l2 || l1 || one_over_n || exp_decay || sq_decay || l2_squared);
 
                     final Object scoreOffsetObj = p.get("scoreOffset");
                     scoreOffset = scoreOffsetObj != null ? Double.valueOf(scoreOffsetObj.toString()) : 0.0d;
@@ -214,6 +218,33 @@ public final class FastCosineSimilarityPlugin extends Plugin implements ScriptPl
                                     score += Math.pow(docVector[i] - inputVector[i], 2.0);
                                 }
                                 score = -Math.sqrt(score);
+
+                            } else if (l2_squared) {
+                                for (int i = 0; i < inputVectorSize; i++) {
+                                    score += Math.pow(docVector[i] - inputVector[i], 2.0);
+                                }
+                                score = -score;
+
+                            } else if (one_over_n) {
+                                for (int i = 0; i < inputVectorSize; i++) {
+                                    score += Math.pow(docVector[i] - inputVector[i], 2.0);
+                                }
+                                score = Math.sqrt(score) / (1. * inputVectorSize); // mean l2 distance
+                                score = 1. / (1. + score);
+
+                            } else if (exp_decay) {
+                                for (int i = 0; i < inputVectorSize; i++) {
+                                    score += Math.pow(docVector[i] - inputVector[i], 2.0);
+                                }
+                                score = Math.sqrt(score) / (1. * inputVectorSize); 
+                                score = (score + 1.) / Math.exp(score);
+
+                            } else if (sq_decay) {
+                                for (int i = 0; i < inputVectorSize; i++) {
+                                    score += Math.pow(docVector[i] - inputVector[i], 2.0);
+                                }
+                                score = Math.sqrt(score) / (1. * inputVectorSize);
+                                score = (score + Math.sqrt(2)) / (Math.pow(score + Math.sqrt(2) - 1., 2) + 1.);
 
                             } else if (l1) {
                                 for (int i = 0; i < inputVectorSize; i++) {
